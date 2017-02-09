@@ -1,0 +1,150 @@
+{
+  "$schema": "http://schemas.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "variables": {
+    "database": {
+      "name": "BrochureDB",
+      "collation": "SQL_Latin1_General_CP1_CI_AS",
+      "edition": "Basic",
+      "tier": "Basic",
+      "server": {
+        "name": "[concat('srvr', uniqueString(resourceGroup().id))]",
+        "adminLogin": "example",
+        "adminPassword": "1stAzure"
+      }
+    },
+    "appservice": {
+      "plan": {
+        "sku": {
+          "name": "S1",
+          "capacity":  1
+        },
+        "size": 0,
+        "name": "[concat('plan', uniqueString(resourceGroup().id))]"
+      },
+      "functionapp": {
+        "name": "[concat('func', uniqueString(resourceGroup().id))]",
+        "repository": {
+          "url": "",
+          "branch": "master"
+        }
+      },
+      "apiapp": {
+        "name": "[concat('apih', uniqueString(resourceGroup().id))]"
+      },
+      "logicapp": {
+        "name": "[concat('logi', uniqueString(resourceGroup().id))]",
+        "connectors": {}
+      }
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/serverfarms",
+      "name": "[variables('appservice').plan.name]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[variables('appservice').plan.sku.name]",
+        "capacity": "[variables('appservice').plan.sku.capacity]"
+      },
+      "properties": {
+        "name": "[variables('appservice').plan.name]",
+        "workerSize": "[variables('appservice').plan.size]",
+        "hostingEnvironment": "",
+        "numberOfWorkers": 1
+      }
+    },
+    {
+      "apiVersion": "2014-04-01-preview",
+      "type": "Microsoft.Sql/servers",
+      "name": "[variables('database').server.name]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "administratorLogin": "[variables('database').server.adminLogin]",
+        "administratorLoginPassword": "[variables('database').server.adminPassword]",
+        "version": "12.0"
+      },
+      "resources": [
+        {
+          "apiVersion": "2014-04-01-preview",
+          "type": "firewallrules",
+          "name": "AllowAllWindowsAzureIps",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', variables('database').server.name)]"
+          ],
+          "properties": {
+            "startIpAddress": "0.0.0.0",
+            "endIpAddress": "0.0.0.0"
+          }
+        },
+        {
+          "apiVersion": "2014-04-01-preview",
+          "type": "databases",
+          "name": "[variables('database').name]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers/', variables('database').server.name)]"
+          ],
+          "properties": {
+            "collation": "[variables('database').collation]",
+            "edition": "[variables('database').edition]",
+            "maxSizeBytes": "1073741824",
+            "requestedServiceObjectiveName": "[variables('database').tier]"
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('appservice').functionapp.name]",
+      "location": "[resourceGroup().location]",
+      "kind": "functionapp",
+      "properties": {
+        "name": "[variables('appservice').functionapp.name]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]",
+        "hostingEnvironment": "",
+        "clientAffinityEnabled": false,
+        "siteConfig": {
+          "AlwaysOn": true
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]",
+        "[resourceId('Microsoft.Sql/servers/databases', variables('database').server.name, variables('database').name)]"
+      ],
+      "resources": [
+        {
+          "apiVersion": "2016-03-01",
+          "type": "config",
+          "name": "connectionstrings",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', variables('appservice').functionapp.name)]"
+          ],
+          "properties": {
+            "DatabaseConnectionString": {
+              "value": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('database').name, ';User Id=', variables('database').server.adminLogin, '@', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ';Password=', variables('database').server.adminPassword, ';')]",
+              "type": "SQLAzure"
+            }
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "type": "sourcecontrols",
+          "name": "web",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', variables('appservice').functionapp.name)]"
+          ],
+          "properties": {
+            "RepoUrl": "[variables('appservice').functionapp.repository.url]",
+            "branch": "[variables('appservice').functionapp.repository.branch]",
+            "IsManualIntegration": true
+          }
+        }
+      ]
+    }
+  ]
+}
