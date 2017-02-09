@@ -4,15 +4,18 @@
   "parameters": {},
   "variables": {
     "database": {
-      "name": "BrochureDB",
+      "name": "airal-brochure-db",
       "collation": "SQL_Latin1_General_CP1_CI_AS",
       "edition": "Basic",
       "tier": "Basic",
       "server": {
-        "name": "[concat('srvr', uniqueString(resourceGroup().id))]",
+        "name": "[concat('airal-srvr-', uniqueString(resourceGroup().id))]",
         "adminLogin": "example",
         "adminPassword": "1stAzure"
       }
+    },
+    "storage": {
+      "name": "[concat('airal', uniqueString(resourceGroup().id))]"
     },
     "appservice": {
       "plan": {
@@ -21,21 +24,31 @@
           "capacity":  1
         },
         "size": 0,
-        "name": "[concat('plan', uniqueString(resourceGroup().id))]"
+        "name": "ECommercePlan"
       },
       "functionapp": {
-        "name": "[concat('func', uniqueString(resourceGroup().id))]",
+        "name": "[concat('airal-processor-', uniqueString(resourceGroup().id))]",
         "repository": {
           "url": "https://github.com/AzureBytes/python_ecommerce.git",
           "branch": "master"
         }
       },
       "apiapp": {
-        "name": "[concat('apih', uniqueString(resourceGroup().id))]"
+        "name": "[concat('airal-shipping-api-', uniqueString(resourceGroup().id))]"
       },
       "logicapp": {
-        "name": "[concat('logi', uniqueString(resourceGroup().id))]",
-        "connectors": {}
+        "name": "[concat('airal-logic-', uniqueString(resourceGroup().id))]",
+        "connectors": {
+          "sql": {
+            "name": "[concat('airal-logic-sql-', uniqueString(resourceGroup().id))]"
+          }
+        }
+      },
+      "mobileapp": {
+        "name": "[concat('airal-brochure-api-', uniqueString(resourceGroup().id))]"
+      },
+      "webapp": {
+        "name": "[concat('airal-web-', uniqueString(resourceGroup().id))]"
       }
     }
   },
