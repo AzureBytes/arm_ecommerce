@@ -14,9 +14,6 @@
         "adminPassword": "1stAzure"
       }
     },
-    "storage": {
-      "name": "[concat('airal', uniqueString(resourceGroup().id))]"
-    },
     "appservice": {
       "plan": {
         "sku": {
@@ -34,7 +31,11 @@
         }
       },
       "apiapp": {
-        "name": "[concat('airal-shipping-api-', uniqueString(resourceGroup().id))]"
+        "name": "[concat('airal-shipping-api-', uniqueString(resourceGroup().id))]",
+        "repository": {
+          "url": "https://github.com/AzureBytes/dotnet_ecommerce.git",
+          "branch": "master"
+        }
       },
       "logicapp": {
         "name": "[concat('airal-logic-', uniqueString(resourceGroup().id))]",
@@ -48,7 +49,11 @@
         "name": "[concat('airal-brochure-api-', uniqueString(resourceGroup().id))]"
       },
       "webapp": {
-        "name": "[concat('airal-web-', uniqueString(resourceGroup().id))]"
+        "name": "[concat('airal-web-', uniqueString(resourceGroup().id))]",
+        "repository": {
+          "url": "https://github.com/AzureBytes/angular_ecommerce.git",
+          "branch": "master"
+        }
       }
     }
   },
@@ -113,6 +118,75 @@
     {
       "apiVersion": "2015-08-01",
       "type": "Microsoft.Web/sites",
+      "name": "[variables('appservice').apiapp.name]",
+      "location": "[resourceGroup().location]",
+      "kind": "api",
+      "properties": {
+        "name": "[variables('appservice').apiapp.name]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]",
+        "siteConfig": {
+          "alwaysOn": true,
+          "cors": {
+            "allowedOrigins": [
+              "*"
+            ]
+          },
+          "apiDefinition": {
+            "url": "[concat('https://', variables('appservice').apiapp.name,'.azurewebsites.net/swagger/docs/v1')]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]"
+      ],
+      "resources": [
+        {
+          "apiVersion": "2015-08-01",
+          "type": "sourcecontrols",
+          "name": "web",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', variables('appservice').apiapp.name)]"
+          ],
+          "properties": {
+            "RepoUrl": "[variables('appservice').apiapp.repository.url]",
+            "branch": "[variables('appservice').apiapp.repository.branch]",
+            "IsManualIntegration": true
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('appservice').mobileapp.name]",
+      "location": "[resourceGroup().location]",
+      "kind": "mobileapp",
+      "properties": {
+        "name": "[variables('appservice').mobileapp.name]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]",
+        "siteConfig": {
+          "alwaysOn": true,
+          "cors": {
+            "allowedOrigins": [
+              "*"
+            ]
+          },
+          "connectionStrings": [
+            {
+              "name": "MS_TableConnectionString",
+              "connectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('database').name, ';User Id=', variables('database').server.adminLogin, '@', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ';Password=', variables('database').server.adminPassword, ';')]",
+              "type": 2
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appservice').plan.name)]"
+      ]
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "type": "Microsoft.Web/sites",
       "name": "[variables('appservice').functionapp.name]",
       "location": "[resourceGroup().location]",
       "kind": "functionapp",
@@ -122,7 +196,20 @@
         "hostingEnvironment": "",
         "clientAffinityEnabled": false,
         "siteConfig": {
-          "AlwaysOn": true
+          "alwaysOn": true,
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~1"
+            }
+          ],
+          "connectionStrings": [
+            {
+              "name": "DatabaseConnectionString",
+              "connectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('database').name, ';User Id=', variables('database').server.adminLogin, '@', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ';Password=', variables('database').server.adminPassword, ';')]",
+              "type": "SQLAzure"
+            }
+          ]
         }
       },
       "dependsOn": [
@@ -130,20 +217,6 @@
         "[resourceId('Microsoft.Sql/servers/databases', variables('database').server.name, variables('database').name)]"
       ],
       "resources": [
-        {
-          "apiVersion": "2016-03-01",
-          "type": "config",
-          "name": "connectionstrings",
-          "dependsOn": [
-            "[resourceId('Microsoft.Web/Sites', variables('appservice').functionapp.name)]"
-          ],
-          "properties": {
-            "DatabaseConnectionString": {
-              "value": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('database').name, ';User Id=', variables('database').server.adminLogin, '@', reference(concat('Microsoft.Sql/servers/', variables('database').server.name)).fullyQualifiedDomainName, ';Password=', variables('database').server.adminPassword, ';')]",
-              "type": "SQLAzure"
-            }
-          }
-        },
         {
           "apiVersion": "2015-08-01",
           "type": "sourcecontrols",
